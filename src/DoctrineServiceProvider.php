@@ -112,12 +112,30 @@ class DoctrineServiceProvider extends ServiceProvider
             // Bind manager
             $this->app->singleton($managerName, function () use ($settings) {
 
-                $manager = EntityManager::create(
-                    ConnectionManager::resolve(array_get($settings, 'connection')),
-                    MetaDataManager::resolve(array_get($settings, 'meta'))
+                $configuration = MetaDataManager::resolve(array_get($settings, 'meta'));
+
+                // Paths
+                $configuration->getMetadataDriverImpl()->addPaths(
+                    array_get($settings, 'paths', [])
                 );
 
-                $configuration = $manager->getConfiguration();
+                // Repository
+                $configuration->setDefaultRepositoryClassName(
+                    array_get($settings, 'repository', \Doctrine\ORM\EntityRepository::class)
+                );
+
+                $configuration->setAutoGenerateProxyClasses(
+                    array_get($settings, 'proxies.auto_generate', false)
+                );
+
+                if ($namespace = array_get($settings, 'proxies.namespace', false)) {
+                    $configuration->setProxyNamespace($namespace);
+                }
+
+                $manager = EntityManager::create(
+                    ConnectionManager::resolve(array_get($settings, 'connection')),
+                    $configuration
+                );
 
                 // Listeners
                 if (isset($settings['events']['listeners'])) {
@@ -139,24 +157,6 @@ class DoctrineServiceProvider extends ServiceProvider
                         $configuration->getMetadataDriverImpl()->addFilter($name, $filter);
                         $manager->getFilters()->enable($name);
                     }
-                }
-
-                // Paths
-                $configuration->getMetadataDriverImpl()->addPaths(
-                    array_get($settings, 'paths', [])
-                );
-
-                // Repository
-                $configuration->setDefaultRepositoryClassName(
-                    array_get($settings, 'repository', \Doctrine\ORM\EntityRepository::class)
-                );
-
-                $configuration->setAutoGenerateProxyClasses(
-                    array_get($settings, 'proxies.auto_generate', false)
-                );
-
-                if ($namespace = array_get($settings, 'proxies.namespace', false)) {
-                    $configuration->setProxyNamespace($namespace);
                 }
 
                 return $manager;
